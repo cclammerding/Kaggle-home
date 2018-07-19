@@ -1,31 +1,59 @@
 library(ROCR)
+library(dplyr)
+library(caret)
+library(rpart)
+library(vcdExtra)
+library(Epi)
+library(mlbench)
+library(rattle)
 
 ##Train/Test Split##---------------------------------------------------------------------------------------------------------------------------
-index <- sample(c("train","test"),nrow(complete),replace = TRUE, prob = c(0.8,02))
-
-complete_split <- split(complete, index)
-
-train <- complete_split$train
-
-test <- complete_split$test
+# index <- sample(c("train","test"),nrow(complete),replace = TRUE, prob = c(0.8,02))
+# 
+# complete_split <- split(complete, index)
+# 
+# train <- complete_split$train
+# 
+# test <- complete_split$test
 
 ##Build Model##--------------------------------------------------------------------------------------------------------------------------------
-fit <- glm(TARGET ~ CNT_CHILDREN + AMT_INCOME_TOTAL + AMT_CREDIT + DAYS_EMPLOYED 
-                  + income_credit_ratio + NAME_CONTRACT_TYPE + FLAG_OWN_CAR + CODE_GENDER
-                  ,data = train, family = binomial)
+TRCONTROL <- trainControl(
+  method = "cv"
+  ,number = 10
+  ,classProbs = TRUE
+  ,summaryFunction = twoClassSummary
+  ,sampling = "smote"
+  ,verboseIter = TRUE
+)
 
-summary(fit)
+fit <- train(
+              TARGET ~ 
+                        DAYS_EMPLOYED 
+                      + NAME_INCOME_TYPE
+                      + NAME_CONTRACT_TYPE
+                      + FLAG_OWN_CAR
+                      + income_credit_ratio  
+                      + income_child_ratio
+              , data = complete[1:50000,]
+              , method = "rpart"
+              #, na.action = na.omit
+              , metric = "ROC"
+              , trControl = TRCONTROL
+            )
+
+#summary(fit)
+fit$results
 
 ##Evaluate Model##-----------------------------------------------------------------------------------------------------------------------------
 
-test.prediction <- predict(fit, test , type = "response")
+# test.prediction <- predict(fit, test , type = "response")
+# 
+# mean(test.prediction == test$TARGET)
+# 
+# pred <- prediction(test.prediction, test$TARGET)
+# 
+# perf <- performance(pred, measure = "auc")
+# 
+# print(paste("AUC: ", perf@y.values[[1]]))
 
-#test.prediction<- round(test.prediction)
 
-mean(test.prediction == test$TARGET)
-
-pred <- prediction(test.prediction, test$TARGET)
-
-perf <- performance(pred, measure = "auc")
-
-print(paste("AUC: ", perf@y.values[[1]]))
